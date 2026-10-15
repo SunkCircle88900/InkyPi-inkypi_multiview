@@ -87,6 +87,10 @@ class InkypiMultiview(BasePlugin):
             lon = float(raw_long)
         except (ValueError, TypeError):
             raise RuntimeError("Latitude and Longitude must be valid numbers.")
+        if not (-90 <= lat <= 90):
+            raise RuntimeError("Latitude must be between -90 and 90.")
+        if not (-180 <= lon <= 180):
+            raise RuntimeError("Longitude must be between -180 and 180.")
 
         units = settings.get("units") or "metric"
         if units not in ("metric", "imperial", "standard"):

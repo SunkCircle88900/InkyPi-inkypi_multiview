@@ -23,7 +23,7 @@ Then restart InkyPi and add "Dashboard Clock" to a playlist.
 In the plugin settings:
 
 - **Dashboard title (optional)** — small header line, leave blank to hide.
-- **Latitude / Longitude** — required, used for weather. Example: New York `40.7128 / -74.0060`.
+- **Latitude / Longitude** — required, used for weather. Example: New York `40.7128 / -74.0060`. Click **Select on map** to drop a pin: click anywhere or drag the marker, then **Save pin**.
 - **Units** — `metric` (°C), `imperial` (°F), `standard` (K).
 - **Calendars** — one or more public iCal URLs (`.ics`). Google Calendar: Settings → Integrate calendar → Public address in iCal format. `webcal://` URLs are accepted.
 - **Max events (1-10)** — default 5.

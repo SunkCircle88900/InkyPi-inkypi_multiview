@@ -1,3 +1,6 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
 <div class="form-group">
   <label for="dashboardTitle" class="form-label">Dashboard title (optional):</label>
   <input type="text" id="dashboardTitle" name="dashboardTitle" class="form-input" placeholder="e.g. Kitchen Dashboard">
@@ -13,6 +16,7 @@
     <span>Longitude </span>
     <input type="text" id="longitude" name="longitude" class="form-input" placeholder="e.g. -74.0060" required>
   </div>
+  <button type="button" id="openMap" class="action-button compact">Select on map</button>
   <label for="units" class="form-label">Units:</label>
   <select id="units" name="units" class="form-input">
     <option value="imperial">Imperial (°F)</option>
@@ -37,6 +41,19 @@
 <div class="form-group">
   <input type="checkbox" id="showSeconds" name="showSeconds" value="true" onclick="this.value=this.checked ? 'true' : 'false';">
   <span>Show seconds on clock</span>
+</div>
+
+<div id="mapModal" class="modal">
+  <div class="modal-content">
+    <span class="close-button" onclick="closeModal('mapModal')">×</span>
+    <h2 id="modalTitle">Select Location</h2>
+    <div class="separator"></div>
+    <div id="map" style="width: 100%; height: 300px; margin: 10px 0px;"></div>
+    <div class="form-group">
+      <span id="mapCoords" style="font-size: 0.85em; opacity: 0.8;"></span>
+    </div>
+    <button id="closeMap" class="action-button" type="button">Save pin</button>
+  </div>
 </div>
 
 <script>
@@ -66,9 +83,63 @@
     calendarList.appendChild(wrapper);
   }
 
+  function hasCoord(value) {
+    return typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value));
+  }
+
+  function parseCoord(value, fallback) {
+    return hasCoord(value) ? Number(value) : fallback;
+  }
+
+  function validateCoordInputs() {
+    const latVal = document.getElementById('latitude').value.trim();
+    const longVal = document.getElementById('longitude').value.trim();
+    if (latVal === '' && longVal === '') return true;
+    if (latVal === '' || longVal === '') {
+      showResponseModal('failure', 'Error! Both latitude and longitude are required.');
+      return false;
+    }
+    if (!hasCoord(latVal) || !hasCoord(longVal)) {
+      showResponseModal('failure', 'Error! Latitude and longitude must be valid numbers.');
+      return false;
+    }
+    const lat = Number(latVal);
+    const lon = Number(longVal);
+    if (lat < -90 || lat > 90) {
+      showResponseModal('failure', 'Error! Latitude must be between -90 and 90.');
+      return false;
+    }
+    if (lon < -180 || lon > 180) {
+      showResponseModal('failure', 'Error! Longitude must be between -180 and 180.');
+      return false;
+    }
+    return true;
+  }
+
+  // Hook into InkyPi form validation so bad coords block save/schedule.
+  (function hookValidation() {
+    if (typeof window.handleAction === 'function' && !window.__dashHooked) {
+      window.__dashHooked = true;
+      const origAction = window.handleAction;
+      window.handleAction = async function(action) {
+        if (!validateCoordInputs()) return;
+        return origAction(action);
+      };
+      if (typeof window.openModal === 'function') {
+        const origOpen = window.openModal;
+        window.openModal = function(modalId) {
+          if (modalId === 'scheduleModal' && !validateCoordInputs()) return;
+          return origOpen(modalId);
+        };
+      }
+    } else if (!window.__dashHooked) {
+      setTimeout(hookValidation, 200);
+    }
+  })();
+
   document.addEventListener('DOMContentLoaded', () => {
     let calendars = [''];
-    if (loadPluginSettings) {
+    if (typeof loadPluginSettings !== 'undefined' && loadPluginSettings) {
       document.getElementById('dashboardTitle').value = pluginSettings.dashboardTitle || '';
       document.getElementById('latitude').value = pluginSettings.latitude ?? '';
       document.getElementById('longitude').value = pluginSettings.longitude ?? '';
@@ -93,5 +164,69 @@
       document.getElementById('lookaheadDays').value = '14';
     }
     calendars.forEach((url) => addCalendarInput(url || ''));
+
+    // ---- Leaflet map pin picker ----
+    const OSM_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    const $latitude = document.getElementById('latitude');
+    const $longitude = document.getElementById('longitude');
+    const $openMap = document.getElementById('openMap');
+    const $closeMap = document.getElementById('closeMap');
+    const $coords = document.getElementById('mapCoords');
+    let map = null, marker = null;
+    let markerMoved = false;
+    let hadValidCoords = false;
+
+    function updateCoordsLabel(lat, lon) {
+      if ($coords) $coords.textContent = 'Pin: ' + Number(lat).toFixed(4) + ', ' + Number(lon).toFixed(4);
+    }
+
+    $openMap.addEventListener('click', () => {
+      if (!validateCoordInputs()) return;
+      const latInput = $latitude.value;
+      const lonInput = $longitude.value;
+      hadValidCoords = hasCoord(latInput) && hasCoord(lonInput);
+      markerMoved = false;
+      let lat = parseCoord(latInput, 20);
+      let lon = parseCoord(lonInput, 0);
+      let zoom = hadValidCoords ? 9 : 2;
+      // Clamp to valid ranges for map view
+      if (lat < -90 || lat > 90) lat = 20;
+      if (lon < -180 || lon > 180) lon = 0;
+
+      openModal('mapModal');
+      setTimeout(() => {
+        if (!map) {
+          map = L.map('map').setView([lat, lon], zoom);
+          L.tileLayer(OSM_TILE_URL, { maxZoom: 19 }).addTo(map);
+          marker = L.marker([lat, lon], { draggable: true }).addTo(map);
+          updateCoordsLabel(lat, lon);
+          map.on('click', (e) => {
+            marker.setLatLng(e.latlng);
+            markerMoved = true;
+            updateCoordsLabel(e.latlng.lat, e.latlng.lng);
+          });
+          marker.on('dragend', () => {
+            markerMoved = true;
+            const p = marker.getLatLng();
+            updateCoordsLabel(p.lat, p.lng);
+          });
+        } else {
+          map.invalidateSize();
+          map.setView([lat, lon], zoom);
+          marker.setLatLng([lat, lon]);
+          updateCoordsLabel(lat, lon);
+        }
+      }, 150);
+    });
+
+    $closeMap.addEventListener('click', () => {
+      if (marker) {
+        const position = marker.getLatLng().wrap();
+        // Always save on explicit Save pin click - user opened map to choose.
+        $latitude.value = position.lat.toFixed(5);
+        $longitude.value = position.lng.toFixed(5);
+      }
+      closeModal('mapModal');
+    });
   });
 </script>
