@@ -1,0 +1,97 @@
+<div class="form-group">
+  <label for="dashboardTitle" class="form-label">Dashboard title (optional):</label>
+  <input type="text" id="dashboardTitle" name="dashboardTitle" class="form-input" placeholder="e.g. Kitchen Dashboard">
+</div>
+
+<div class="form-group">
+  <label class="form-label">Location (for Open-Meteo weather):</label>
+  <div class="form-group">
+    <span>Latitude </span>
+    <input type="text" id="latitude" name="latitude" class="form-input" placeholder="e.g. 40.7128" required>
+  </div>
+  <div class="form-group">
+    <span>Longitude </span>
+    <input type="text" id="longitude" name="longitude" class="form-input" placeholder="e.g. -74.0060" required>
+  </div>
+  <label for="units" class="form-label">Units:</label>
+  <select id="units" name="units" class="form-input">
+    <option value="imperial">Imperial (°F)</option>
+    <option value="metric">Metric (°C)</option>
+    <option value="standard">Standard (K)</option>
+  </select>
+</div>
+
+<div>
+  <label class="form-label">Calendars (iCal URLs):</label>
+  <div id="calendarList"></div>
+  <button type="button" id="addCalendarBtn" class="form-input collapsible" onclick="addCalendarInput('')">Add Calendar</button>
+</div>
+
+<div class="form-group">
+  <label for="maxEvents" class="form-label">Max events to show (1-10):</label>
+  <input type="number" id="maxEvents" name="maxEvents" class="form-input" min="1" max="10" placeholder="5">
+  <label for="lookaheadDays" class="form-label">Look ahead (days, 1-30):</label>
+  <input type="number" id="lookaheadDays" name="lookaheadDays" class="form-input" min="1" max="30" placeholder="14">
+</div>
+
+<div class="form-group">
+  <input type="checkbox" id="showSeconds" name="showSeconds" value="true" onclick="this.value=this.checked ? 'true' : 'false';">
+  <span>Show seconds on clock</span>
+</div>
+
+<script>
+  function addCalendarInput(url = '') {
+    const calendarList = document.getElementById('calendarList');
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('calendar-entry');
+    wrapper.classList.add('form-group');
+
+    const urlInput = document.createElement('input');
+    urlInput.type = 'text';
+    urlInput.name = 'calendarURLs[]';
+    urlInput.placeholder = 'https://calendar.google.com/.../basic.ics';
+    urlInput.required = false;
+    urlInput.classList.add('form-input');
+    urlInput.value = url;
+    urlInput.style.flex = '1';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.innerText = '✕';
+    removeBtn.classList.add('remove-btn');
+    removeBtn.onclick = () => wrapper.remove();
+
+    wrapper.appendChild(urlInput);
+    wrapper.appendChild(removeBtn);
+    calendarList.appendChild(wrapper);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    let calendars = [''];
+    if (loadPluginSettings) {
+      document.getElementById('dashboardTitle').value = pluginSettings.dashboardTitle || '';
+      document.getElementById('latitude').value = pluginSettings.latitude ?? '';
+      document.getElementById('longitude').value = pluginSettings.longitude ?? '';
+      document.getElementById('units').value = pluginSettings.units || 'metric';
+      document.getElementById('maxEvents').value = pluginSettings.maxEvents || '5';
+      document.getElementById('lookaheadDays').value = pluginSettings.lookaheadDays || '14';
+      const ss = pluginSettings.showSeconds === 'true' || pluginSettings.showSeconds === true;
+      document.getElementById('showSeconds').checked = ss;
+      document.getElementById('showSeconds').value = ss ? 'true' : 'false';
+
+      let raw = pluginSettings["calendarURLs[]"];
+      if (raw) {
+        if (Array.isArray(raw)) {
+          calendars = raw.length ? raw : [''];
+        } else if (typeof raw === 'string' && raw.trim() !== '') {
+          calendars = [raw];
+        }
+      }
+    } else {
+      document.getElementById('units').value = 'metric';
+      document.getElementById('maxEvents').value = '5';
+      document.getElementById('lookaheadDays').value = '14';
+    }
+    calendars.forEach((url) => addCalendarInput(url || ''));
+  });
+</script>

@@ -1,0 +1,6 @@
+{
+    "display_name": "Dashboard Clock",
+    "id": "inkypi_multiview",
+    "class": "InkypiMultiview",
+    "repository": "https://github.com/SunkCircle88900/InkyPi-inkypi_multiview"
+}
