@@ -74,9 +74,9 @@
 }
 
 .clock-time {
-  font-size: min(8.5dvw, 15dvh);
+  font-size: min(12.75dvw, 22dvh);
   font-weight: bold;
-  line-height: 115%;
+  line-height: 110%;
   color: #fff;
   height: auto;
   max-width: 100%;
@@ -86,12 +86,22 @@
   text-align: center;
 }
 
-.clock-period {
-  font-size: 0.3em;
-  margin-left: 0.3em;
-  vertical-align: super;
-  font-weight: normal;
+.clock-time.with-seconds {
+  font-size: min(9dvw, 16dvh);
+}
+
+.clock-period-line {
+  font-size: min(3.2dvw, 5.5dvh);
+  font-weight: bold;
+  letter-spacing: 0.35em;
+  text-indent: 0.35em;
   color: var(--yellow);
+  line-height: 130%;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
 }
 
 .clock-date {
@@ -317,11 +327,27 @@
   text-overflow: ellipsis;
 }
 
+.weather-error-strip {
+  background: #FDECEA;
+  border-color: #B00020;
+  justify-content: center;
+}
+
+.weather-error-strip .wx-desc {
+  color: #B00020;
+  text-align: center;
+}
+
+.weather-error-strip .wx-sub {
+  text-align: center;
+}
+
 /* Portrait: stack clock on top, events middle */
 @media (max-aspect-ratio: 1) {
   .dash-top { flex-direction: column; }
   .clock-panel { width: 100%; padding: 1.5dvh 2dvw; }
-  .clock-time { font-size: min(10dvw, 8dvh); }
+  .clock-time { font-size: min(15dvw, 12dvh); }
+  .clock-time.with-seconds { font-size: min(11dvw, 9dvh); }
   .events-panel { width: 100%; flex: 1 1 auto; }
   .weather-strip { min-height: 0; }
 }

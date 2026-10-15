@@ -8,7 +8,8 @@
   <div class="dash-top">
     <div class="clock-panel">
       <div class="clock-label">TIME</div>
-      <div class="clock-time">{{ clock_time }}{% if clock_period %}<span class="clock-period">{{ clock_period }}</span>{% endif %}</div>
+      <div class="clock-time{% if plugin_settings.showSeconds == "true" or plugin_settings.showSeconds == true %} with-seconds{% endif %}">{{ clock_time }}</div>
+      {% if clock_period %}<div class="clock-period-line">{{ clock_period }}</div>{% endif %}
       <div class="clock-date">{{ clock_date }}</div>
     </div>
     <div class="events-panel">
@@ -33,6 +34,14 @@
       {% endif %}
     </div>
   </div>
+  {% if weather_error %}
+  <div class="weather-strip weather-error-strip">
+    <div class="wx-details">
+      <div class="wx-desc">Weather unavailable</div>
+      <div class="wx-sub">Check connection, location and logs</div>
+    </div>
+  </div>
+  {% else %}
   <div class="weather-strip">
     <div class="wx-symbol">{{ weather.symbol }}</div>
     <div class="wx-temp">{{ weather.temp }}<span class="wx-unit">{{ weather.degree_sign }}{{ weather.unit }}</span></div>
@@ -42,5 +51,6 @@
       <div class="wx-sub">Wind {{ weather.wind }} {{ weather.wind_unit }} {{ weather.wind_arrow }}</div>
     </div>
   </div>
+  {% endif %}
 </div>
 {% endblock %}

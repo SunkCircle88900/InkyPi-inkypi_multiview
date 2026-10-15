@@ -132,14 +132,31 @@ class InkypiMultiview(BasePlugin):
         clock_date = now.strftime("%A, %B %d")
 
         # --- Weather (Open-Meteo, no key) ---
+        # Network/API failures must not kill clock + events: show a
+        # placeholder strip instead. Missing/invalid coords still raise,
+        # since that means the plugin isn't configured yet.
+        weather_error = False
         try:
             weather_raw = self.get_open_meteo_data(lat, lon, units, forecast_days=2)
             weather = self.parse_current_weather(weather_raw, units)
         except RuntimeError:
             raise
         except Exception as e:
-            logger.error("Open-Meteo request failed: %s", str(e))
-            raise RuntimeError("Weather request failed, please check logs.")
+            logger.error("Open-Meteo request failed for %s,%s: %s", lat, lon, str(e))
+            weather_error = True
+            weather = {
+                "temp": "--",
+                "feels_like": "--",
+                "high": "--",
+                "low": "--",
+                "description": "Weather unavailable",
+                "symbol": "?",
+                "unit": UNITS[units]["temperature"],
+                "wind": "--",
+                "wind_unit": UNITS[units]["speed"],
+                "wind_arrow": "",
+                "degree_sign": "" if units == "standard" else "\u00b0",
+            }
 
         # --- Events (iCal) ---
         calendar_urls = settings.get("calendarURLs[]") or settings.get("calendarURLs") or []
@@ -180,6 +197,7 @@ class InkypiMultiview(BasePlugin):
             "calendar_error": calendar_error,
             "max_events": max_events,
             "weather": weather,
+            "weather_error": weather_error,
             "plugin_settings": settings,
         }
 
