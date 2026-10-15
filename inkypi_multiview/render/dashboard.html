@@ -28,6 +28,9 @@
       {% else %}
       <div class="events-empty">No upcoming events</div>
       {% endif %}
+      {% if calendar_error %}
+      <div class="events-warn">Some calendars failed to load — check URLs/logs</div>
+      {% endif %}
     </div>
   </div>
   <div class="weather-strip">

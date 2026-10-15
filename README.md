@@ -25,7 +25,10 @@ In the plugin settings:
 - **Dashboard title (optional)** — small header line, leave blank to hide.
 - **Latitude / Longitude** — required, used for weather. Example: New York `40.7128 / -74.0060`. Click **Select on map** to drop a pin: click anywhere or drag the marker, then **Save pin**.
 - **Units** — `metric` (°C), `imperial` (°F), `standard` (K).
-- **Calendars** — one or more public iCal URLs (`.ics`). Google Calendar: Settings → Integrate calendar → Public address in iCal format. `webcal://` URLs are accepted.
+- **Calendars** — one or more **public** iCal URLs (`.ics`). A broken/private feed is skipped with an on-screen warning instead of breaking the whole dashboard (clock + weather keep working).
+  - Google Calendar: Settings → Integrate calendar → Public address in iCal format.
+  - Apple Calendar: open Calendar → share the calendar → turn on **Public Calendar** → use the **Public address** link (`https://pXX-caldav.icloud.com/published/...`). Your private iCloud CalDAV login URL will **not** work (needs your Apple ID) — the plugin will show a warning for it.
+  - `webcal://` URLs are accepted and converted to `https://` automatically.
 - **Max events (1-10)** — default 5.
 - **Max words per event title (1-10)** — default 5. Long titles are cut with … (max ~32 chars) so they can't push other columns out of bounds.
 - **Look ahead days (1-30)** — default 14.

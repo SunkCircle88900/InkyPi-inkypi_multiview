@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 OPEN_METEO_FORECAST_URL = (
     "https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={long}"
     "&hourly=weather_code,temperature_2m"
-    "&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset"
+    "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset"
     "&current=temperature,windspeed,winddirection,is_day,precipitation,weather_code,apparent_temperature"
     "&timezone=auto&models=best_match&forecast_days={forecast_days}"
 )
@@ -155,14 +155,15 @@ class InkypiMultiview(BasePlugin):
                 urls.append(u)
 
         events = []
+        calendar_error = False
         if urls:
             try:
-                events = self.fetch_upcoming_events(urls, tz, now, lookahead_days, max_events, time_format, title_words)
-            except RuntimeError:
-                raise
+                events, calendar_error = self.fetch_upcoming_events(
+                    urls, tz, now, lookahead_days, max_events, time_format, title_words)
             except Exception as e:
+                # Never let calendar problems take down clock + weather.
                 logger.error("Calendar fetch failed: %s", str(e))
-                raise RuntimeError("Failed to fetch calendar events, please check URLs/logs.")
+                events, calendar_error = [], True
         else:
             logger.info("No calendar URLs configured, showing empty events list.")
 
@@ -176,6 +177,7 @@ class InkypiMultiview(BasePlugin):
             "clock_period": clock_period,
             "clock_date": clock_date,
             "events": events,
+            "calendar_error": calendar_error,
             "max_events": max_events,
             "weather": weather,
             "plugin_settings": settings,
@@ -214,9 +216,12 @@ class InkypiMultiview(BasePlugin):
         unit_params = OPEN_METEO_UNIT_PARAMS[units]
         url = OPEN_METEO_FORECAST_URL.format(lat=lat, long=lon, forecast_days=forecast_days)
         url = url + "&" + unit_params
-        resp = requests.get(url, timeout=30)
+        resp = requests.get(url, timeout=30, headers={
+            "User-Agent": "InkyPi-dashboard-clock/1.0",
+            "Accept": "application/json",
+        })
         if not 200 <= resp.status_code < 300:
-            logger.error("Open-Meteo failed: %s", resp.content[:500])
+            logger.error("Open-Meteo failed (%s): %s", resp.status_code, resp.content[:500])
             raise RuntimeError("Failed to retrieve weather data from Open-Meteo.")
         return resp.json()
 
@@ -283,18 +288,37 @@ class InkypiMultiview(BasePlugin):
         return "\u2191"
 
     # ---------- calendar ----------
+    @staticmethod
+    def _safe_host(url):
+        """Host only, so tokens in share URLs never land in logs."""
+        try:
+            from urllib.parse import urlparse
+            return urlparse(url).netloc or "unknown host"
+        except Exception:
+            return "unknown host"
+
     def fetch_upcoming_events(self, urls, tz, now, lookahead_days, max_events, time_format, title_words=5):
+        """Returns (events, had_error). A failing feed is skipped so one bad
+        URL (e.g. a private Apple CalDAV link) can't take down the dashboard."""
         start_range = now - timedelta(minutes=5)
-        # strip tz for naive comparison? recurring_ical_events handles aware; use aware start/end
         end_range = now + timedelta(days=lookahead_days)
         parsed = []
+        had_error = False
         for url in urls:
-            cal = self.fetch_calendar(url)
+            try:
+                cal = self.fetch_calendar(url)
+            except RuntimeError as e:
+                logger.warning("Skipping calendar on %s: %s",
+                               self._safe_host(url), str(e))
+                had_error = True
+                continue
             try:
                 events = recurring_ical_events.of(cal).between(start_range, end_range)
             except Exception as e:
-                logger.error("Failed to expand events for %s: %s", url, str(e))
-                raise RuntimeError(f"Failed to parse calendar events: {str(e)}")
+                logger.warning("Failed to expand events for %s: %s",
+                               self._safe_host(url), str(e))
+                had_error = True
+                continue
             for ev in events:
                 try:
                     title = str(ev.get("summary", "Untitled"))
@@ -370,7 +394,7 @@ class InkypiMultiview(BasePlugin):
                 "day_label": day_label,
                 "time_label": time_label,
             })
-        return out
+        return out, had_error
 
     @staticmethod
     def shorten_title(title, max_words=5, max_chars=32):
@@ -384,11 +408,27 @@ class InkypiMultiview(BasePlugin):
         return text or "Untitled"
 
     def fetch_calendar(self, calendar_url):
+        original = calendar_url
         if calendar_url.startswith("webcal://"):
-            calendar_url = calendar_url.replace("webcal://", "https://")
+            calendar_url = calendar_url.replace("webcal://", "https://", 1)
         try:
-            resp = requests.get(calendar_url, timeout=30)
+            resp = requests.get(calendar_url, timeout=30, headers={
+                # iCloud rejects some non-browser clients; identify politely.
+                "User-Agent": "Mozilla/5.0 (InkyPi-dashboard-clock/1.0)",
+                "Accept": "text/calendar, text/plain, */*",
+            })
             resp.raise_for_status()
             return icalendar.Calendar.from_ical(resp.text)
         except Exception as e:
-            raise RuntimeError(f"Failed to fetch iCalendar url: {str(e)}")
+            host = self._safe_host(original)
+            status = ""
+            try:
+                status = " (HTTP %s)" % resp.status_code
+            except Exception:
+                pass
+            if "401" in str(e) or "403" in str(e):
+                raise RuntimeError(
+                    "Calendar on %s needs authentication%s. "
+                    "For Apple Calendar, share it as a Public Calendar and use the "
+                    "public .ics link, not your private CalDAV login URL." % (host, status))
+            raise RuntimeError(f"Failed to fetch iCalendar from {host}{status}: {str(e)}")

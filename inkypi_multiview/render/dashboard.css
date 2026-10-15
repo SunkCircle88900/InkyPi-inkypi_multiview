@@ -225,6 +225,16 @@
   white-space: normal;
 }
 
+.events-warn {
+  font-size: min(2.2dvh, 2.2vw);
+  color: #B00020;
+  text-align: center;
+  padding: 0.5dvh 1dvw;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
 .weather-strip {
   height: auto;
   min-height: 90px;
