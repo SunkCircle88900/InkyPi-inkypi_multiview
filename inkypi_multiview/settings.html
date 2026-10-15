@@ -36,6 +36,8 @@
   <input type="number" id="maxEvents" name="maxEvents" class="form-input" min="1" max="10" placeholder="5">
   <label for="lookaheadDays" class="form-label">Look ahead (days, 1-30):</label>
   <input type="number" id="lookaheadDays" name="lookaheadDays" class="form-input" min="1" max="30" placeholder="14">
+  <label for="titleWords" class="form-label">Max words per event title (1-10):</label>
+  <input type="number" id="titleWords" name="titleWords" class="form-input" min="1" max="10" placeholder="5">
 </div>
 
 <div class="form-group">
@@ -146,6 +148,7 @@
       document.getElementById('units').value = pluginSettings.units || 'metric';
       document.getElementById('maxEvents').value = pluginSettings.maxEvents || '5';
       document.getElementById('lookaheadDays').value = pluginSettings.lookaheadDays || '14';
+      document.getElementById('titleWords').value = pluginSettings.titleWords || '5';
       const ss = pluginSettings.showSeconds === 'true' || pluginSettings.showSeconds === true;
       document.getElementById('showSeconds').checked = ss;
       document.getElementById('showSeconds').value = ss ? 'true' : 'false';
@@ -162,6 +165,7 @@
       document.getElementById('units').value = 'metric';
       document.getElementById('maxEvents').value = '5';
       document.getElementById('lookaheadDays').value = '14';
+      document.getElementById('titleWords').value = '5';
     }
     calendars.forEach((url) => addCalendarInput(url || ''));
 

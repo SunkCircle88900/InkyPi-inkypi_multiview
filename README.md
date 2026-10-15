@@ -27,6 +27,7 @@ In the plugin settings:
 - **Units** — `metric` (°C), `imperial` (°F), `standard` (K).
 - **Calendars** — one or more public iCal URLs (`.ics`). Google Calendar: Settings → Integrate calendar → Public address in iCal format. `webcal://` URLs are accepted.
 - **Max events (1-10)** — default 5.
+- **Max words per event title (1-10)** — default 5. Long titles are cut with … (max ~32 chars) so they can't push other columns out of bounds.
 - **Look ahead days (1-30)** — default 14.
 - **Show seconds** — adds `:SS` to the digital clock.
 

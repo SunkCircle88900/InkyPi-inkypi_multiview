@@ -108,6 +108,12 @@ class InkypiMultiview(BasePlugin):
             lookahead_days = 14
         lookahead_days = max(1, min(30, lookahead_days))
 
+        try:
+            title_words = int(settings.get("titleWords") or 5)
+        except (ValueError, TypeError):
+            title_words = 5
+        title_words = max(1, min(10, title_words))
+
         show_seconds = str(settings.get("showSeconds") or "false").lower() == "true"
         dashboard_title = (settings.get("dashboardTitle") or "").strip()
 
@@ -151,7 +157,7 @@ class InkypiMultiview(BasePlugin):
         events = []
         if urls:
             try:
-                events = self.fetch_upcoming_events(urls, tz, now, lookahead_days, max_events, time_format)
+                events = self.fetch_upcoming_events(urls, tz, now, lookahead_days, max_events, time_format, title_words)
             except RuntimeError:
                 raise
             except Exception as e:
@@ -277,7 +283,7 @@ class InkypiMultiview(BasePlugin):
         return "\u2191"
 
     # ---------- calendar ----------
-    def fetch_upcoming_events(self, urls, tz, now, lookahead_days, max_events, time_format):
+    def fetch_upcoming_events(self, urls, tz, now, lookahead_days, max_events, time_format, title_words=5):
         start_range = now - timedelta(minutes=5)
         # strip tz for naive comparison? recurring_ical_events handles aware; use aware start/end
         end_range = now + timedelta(days=lookahead_days)
@@ -360,11 +366,22 @@ class InkypiMultiview(BasePlugin):
                     if e["end"].date() == d:
                         time_label += " - " + self.format_time(e["end"], time_format)
             out.append({
-                "title": e["title"],
+                "title": self.shorten_title(e["title"], title_words),
                 "day_label": day_label,
                 "time_label": time_label,
             })
         return out
+
+    @staticmethod
+    def shorten_title(title, max_words=5, max_chars=32):
+        """Collapse whitespace and trim to max_words / max_chars with ellipsis."""
+        text = " ".join(str(title or "").split())
+        words = text.split(" ")
+        if len(words) > max_words:
+            text = " ".join(words[:max_words]) + "…"
+        if len(text) > max_chars:
+            text = text[: max_chars - 1].rstrip() + "…"
+        return text or "Untitled"
 
     def fetch_calendar(self, calendar_url):
         if calendar_url.startswith("webcal://"):
